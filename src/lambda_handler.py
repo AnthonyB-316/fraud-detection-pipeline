@@ -2,13 +2,15 @@
 AWS Lambda handlers for fraud detection API.
 Serverless deployment handlers for API Gateway integration.
 """
+
 import json
-import os
-import boto3
 import logging
+import os
 from datetime import datetime, timedelta
-from typing import Dict, Any
 from decimal import Decimal
+from typing import Any, Dict
+
+import boto3
 
 # Configure logging
 logger = logging.getLogger()
@@ -31,17 +33,17 @@ def get_detector():
     global _detector
 
     if _detector is None:
-        import joblib
         import tempfile
 
         logger.info(f"Loading model from s3://{MODEL_BUCKET}/{MODEL_KEY}")
 
-        s3 = boto3.client('s3')
-        with tempfile.NamedTemporaryFile(suffix='.joblib') as tmp:
+        s3 = boto3.client("s3")
+        with tempfile.NamedTemporaryFile(suffix=".joblib") as tmp:
             s3.download_file(MODEL_BUCKET, MODEL_KEY, tmp.name)
 
             # Import here to avoid cold start overhead if not needed
             from predict import FraudDetector
+
             _detector = FraudDetector(tmp.name)
 
         logger.info("Model loaded successfully")
@@ -54,7 +56,7 @@ def get_dynamodb_table():
     global _dynamodb
 
     if _dynamodb is None:
-        dynamodb = boto3.resource('dynamodb')
+        dynamodb = boto3.resource("dynamodb")
         _dynamodb = dynamodb.Table(PREDICTIONS_TABLE)
 
     return _dynamodb
@@ -68,9 +70,9 @@ def create_response(status_code: int, body: Dict[str, Any]) -> Dict:
             "Content-Type": "application/json",
             "Access-Control-Allow-Origin": "*",
             "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
-            "Access-Control-Allow-Headers": "Content-Type,Authorization"
+            "Access-Control-Allow-Headers": "Content-Type,Authorization",
         },
-        "body": json.dumps(body, default=str)
+        "body": json.dumps(body, default=str),
     }
 
 
@@ -83,15 +85,17 @@ def log_prediction(transaction_id: str, prediction: Dict, amount: float):
         # TTL: 30 days
         ttl = int((datetime.utcnow() + timedelta(days=30)).timestamp())
 
-        table.put_item(Item={
-            'transaction_id': transaction_id,
-            'timestamp': timestamp,
-            'fraud_probability': Decimal(str(prediction['fraud_probability'])),
-            'is_fraud': prediction['is_fraud'],
-            'risk_level': prediction['risk_level'],
-            'amount': Decimal(str(amount)),
-            'ttl': ttl
-        })
+        table.put_item(
+            Item={
+                "transaction_id": transaction_id,
+                "timestamp": timestamp,
+                "fraud_probability": Decimal(str(prediction["fraud_probability"])),
+                "is_fraud": prediction["is_fraud"],
+                "risk_level": prediction["risk_level"],
+                "amount": Decimal(str(amount)),
+                "ttl": ttl,
+            }
+        )
     except Exception as e:
         logger.error(f"Failed to log prediction: {e}")
 
@@ -101,11 +105,9 @@ def log_prediction(transaction_id: str, prediction: Dict, amount: float):
 # ===================
 def health_handler(event, context):
     """Health check endpoint."""
-    return create_response(200, {
-        "status": "healthy",
-        "version": "1.0.0",
-        "region": os.getenv("AWS_REGION", "unknown")
-    })
+    return create_response(
+        200, {"status": "healthy", "version": "1.0.0", "region": os.getenv("AWS_REGION", "unknown")}
+    )
 
 
 def predict_handler(event, context):
@@ -120,20 +122,18 @@ def predict_handler(event, context):
     }
     """
     try:
-        body = json.loads(event.get('body', '{}'))
+        body = json.loads(event.get("body", "{}"))
 
         # Validate required fields
-        required_fields = ['Amount', 'Time'] + [f'V{i}' for i in range(1, 29)]
+        required_fields = ["Amount", "Time"] + [f"V{i}" for i in range(1, 29)]
         missing = [f for f in required_fields if f not in body]
         if missing:
-            return create_response(400, {
-                "error": "Missing required fields",
-                "missing": missing
-            })
+            return create_response(400, {"error": "Missing required fields", "missing": missing})
 
         # Get prediction
         detector = get_detector()
         import time
+
         start = time.time()
         result = detector.predict(body)
         latency_ms = (time.time() - start) * 1000
@@ -142,16 +142,19 @@ def predict_handler(event, context):
         transaction_id = f"txn_{context.aws_request_id}"
 
         # Log to DynamoDB
-        log_prediction(transaction_id, result, body['Amount'])
+        log_prediction(transaction_id, result, body["Amount"])
 
-        return create_response(200, {
-            "transaction_id": transaction_id,
-            "fraud_probability": result['fraud_probability'],
-            "is_fraud": result['is_fraud'],
-            "risk_level": result['risk_level'],
-            "threshold": result['threshold'],
-            "latency_ms": round(latency_ms, 2)
-        })
+        return create_response(
+            200,
+            {
+                "transaction_id": transaction_id,
+                "fraud_probability": result["fraud_probability"],
+                "is_fraud": result["is_fraud"],
+                "risk_level": result["risk_level"],
+                "threshold": result["threshold"],
+                "latency_ms": round(latency_ms, 2),
+            },
+        )
 
     except json.JSONDecodeError:
         return create_response(400, {"error": "Invalid JSON body"})
@@ -173,8 +176,8 @@ def batch_predict_handler(event, context):
     }
     """
     try:
-        body = json.loads(event.get('body', '{}'))
-        transactions = body.get('transactions', [])
+        body = json.loads(event.get("body", "{}"))
+        transactions = body.get("transactions", [])
 
         if not transactions:
             return create_response(400, {"error": "No transactions provided"})
@@ -185,6 +188,7 @@ def batch_predict_handler(event, context):
         # Get predictions
         detector = get_detector()
         import time
+
         start = time.time()
         results = detector.predict_batch(transactions)
         latency_ms = (time.time() - start) * 1000
@@ -193,21 +197,26 @@ def batch_predict_handler(event, context):
         predictions = []
         for i, (txn, result) in enumerate(zip(transactions, results)):
             transaction_id = f"batch_{context.aws_request_id}_{i}"
-            log_prediction(transaction_id, result, txn.get('Amount', 0))
+            log_prediction(transaction_id, result, txn.get("Amount", 0))
 
-            predictions.append({
-                "transaction_id": transaction_id,
-                "fraud_probability": result['fraud_probability'],
-                "is_fraud": result['is_fraud'],
-                "risk_level": result['risk_level']
-            })
+            predictions.append(
+                {
+                    "transaction_id": transaction_id,
+                    "fraud_probability": result["fraud_probability"],
+                    "is_fraud": result["is_fraud"],
+                    "risk_level": result["risk_level"],
+                }
+            )
 
-        return create_response(200, {
-            "predictions": predictions,
-            "total_transactions": len(transactions),
-            "flagged_count": sum(1 for r in results if r['is_fraud']),
-            "latency_ms": round(latency_ms, 2)
-        })
+        return create_response(
+            200,
+            {
+                "predictions": predictions,
+                "total_transactions": len(transactions),
+                "flagged_count": sum(1 for r in results if r["is_fraud"]),
+                "latency_ms": round(latency_ms, 2),
+            },
+        )
 
     except json.JSONDecodeError:
         return create_response(400, {"error": "Invalid JSON body"})
@@ -223,35 +232,36 @@ def explain_handler(event, context):
     Expected body: Same as predict, with optional top_k parameter
     """
     try:
-        body = json.loads(event.get('body', '{}'))
-        top_k = body.pop('top_k', 10)
+        body = json.loads(event.get("body", "{}"))
+        top_k = body.pop("top_k", 10)
 
         # Validate required fields
-        required_fields = ['Amount', 'Time'] + [f'V{i}' for i in range(1, 29)]
+        required_fields = ["Amount", "Time"] + [f"V{i}" for i in range(1, 29)]
         missing = [f for f in required_fields if f not in body]
         if missing:
-            return create_response(400, {
-                "error": "Missing required fields",
-                "missing": missing
-            })
+            return create_response(400, {"error": "Missing required fields", "missing": missing})
 
         # Get explanation
         detector = get_detector()
         import time
+
         start = time.time()
         result = detector.explain(body, top_k=top_k)
         latency_ms = (time.time() - start) * 1000
 
-        return create_response(200, {
-            "prediction": {
-                "fraud_probability": result['prediction']['fraud_probability'],
-                "is_fraud": result['prediction']['is_fraud'],
-                "risk_level": result['prediction']['risk_level'],
-                "threshold": result['prediction']['threshold'],
-                "latency_ms": round(latency_ms, 2)
+        return create_response(
+            200,
+            {
+                "prediction": {
+                    "fraud_probability": result["prediction"]["fraud_probability"],
+                    "is_fraud": result["prediction"]["is_fraud"],
+                    "risk_level": result["prediction"]["risk_level"],
+                    "threshold": result["prediction"]["threshold"],
+                    "latency_ms": round(latency_ms, 2),
+                },
+                "explanation": result["explanation"],
             },
-            "explanation": result['explanation']
-        })
+        )
 
     except json.JSONDecodeError:
         return create_response(400, {"error": "Invalid JSON body"})
@@ -273,9 +283,9 @@ def login_handler(event, context):
     try:
         from auth import authenticate_user, create_access_token, create_refresh_token
 
-        body = json.loads(event.get('body', '{}'))
-        username = body.get('username')
-        password = body.get('password')
+        body = json.loads(event.get("body", "{}"))
+        username = body.get("username")
+        password = body.get("password")
 
         if not username or not password:
             return create_response(400, {"error": "Username and password required"})
@@ -284,18 +294,13 @@ def login_handler(event, context):
         if not user:
             return create_response(401, {"error": "Invalid credentials"})
 
-        access_token = create_access_token(
-            data={"sub": user.username, "scopes": user.scopes}
-        )
-        refresh_token = create_refresh_token(
-            data={"sub": user.username, "scopes": user.scopes}
-        )
+        access_token = create_access_token(data={"sub": user.username, "scopes": user.scopes})
+        refresh_token = create_refresh_token(data={"sub": user.username, "scopes": user.scopes})
 
-        return create_response(200, {
-            "access_token": access_token,
-            "refresh_token": refresh_token,
-            "token_type": "bearer"
-        })
+        return create_response(
+            200,
+            {"access_token": access_token, "refresh_token": refresh_token, "token_type": "bearer"},
+        )
 
     except json.JSONDecodeError:
         return create_response(400, {"error": "Invalid JSON body"})
@@ -313,11 +318,11 @@ def authorizer_handler(event, context):
     try:
         from auth import decode_token
 
-        token = event.get('authorizationToken', '')
-        method_arn = event.get('methodArn', '')
+        token = event.get("authorizationToken", "")
+        method_arn = event.get("methodArn", "")
 
         # Remove 'Bearer ' prefix if present
-        if token.startswith('Bearer '):
+        if token.startswith("Bearer "):
             token = token[7:]
 
         # Decode and validate token
@@ -326,39 +331,30 @@ def authorizer_handler(event, context):
         # Generate allow policy
         return generate_policy(
             principal_id=token_data.username,
-            effect='Allow',
+            effect="Allow",
             resource=method_arn,
-            context={
-                'username': token_data.username,
-                'scopes': ','.join(token_data.scopes)
-            }
+            context={"username": token_data.username, "scopes": ",".join(token_data.scopes)},
         )
 
     except Exception as e:
         logger.error(f"Authorization error: {e}")
         # Return deny policy
         return generate_policy(
-            principal_id='unauthorized',
-            effect='Deny',
-            resource=event.get('methodArn', '*')
+            principal_id="unauthorized", effect="Deny", resource=event.get("methodArn", "*")
         )
 
 
 def generate_policy(principal_id: str, effect: str, resource: str, context: Dict = None) -> Dict:
     """Generate IAM policy document."""
     policy = {
-        'principalId': principal_id,
-        'policyDocument': {
-            'Version': '2012-10-17',
-            'Statement': [{
-                'Action': 'execute-api:Invoke',
-                'Effect': effect,
-                'Resource': resource
-            }]
-        }
+        "principalId": principal_id,
+        "policyDocument": {
+            "Version": "2012-10-17",
+            "Statement": [{"Action": "execute-api:Invoke", "Effect": effect, "Resource": resource}],
+        },
     }
 
     if context:
-        policy['context'] = context
+        policy["context"] = context
 
     return policy

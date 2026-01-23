@@ -1,12 +1,13 @@
 """
 JWT Authentication module for fraud detection API.
 """
+
 import os
 from datetime import datetime, timedelta
 from typing import Optional
 
 from fastapi import Depends, HTTPException, status
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from pydantic import BaseModel
@@ -55,7 +56,7 @@ DEMO_USERS_DB = {
         "email": "admin@example.com",
         "hashed_password": pwd_context.hash("admin123"),
         "disabled": False,
-        "scopes": ["read", "write", "admin"]
+        "scopes": ["read", "write", "admin"],
     },
     "analyst": {
         "username": "analyst",
@@ -63,7 +64,7 @@ DEMO_USERS_DB = {
         "email": "analyst@example.com",
         "hashed_password": pwd_context.hash("analyst123"),
         "disabled": False,
-        "scopes": ["read"]
+        "scopes": ["read"],
     },
     "api_user": {
         "username": "api_user",
@@ -71,8 +72,8 @@ DEMO_USERS_DB = {
         "email": "api@example.com",
         "hashed_password": pwd_context.hash("api123"),
         "disabled": False,
-        "scopes": ["read", "write"]
-    }
+        "scopes": ["read", "write"],
+    },
 }
 
 
@@ -133,43 +134,36 @@ def decode_token(token: str) -> TokenData:
         scopes: list = payload.get("scopes", [])
         if username is None:
             raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid token payload"
+                status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token payload"
             )
         return TokenData(username=username, scopes=scopes)
     except JWTError:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Could not validate credentials"
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Could not validate credentials"
         )
 
 
-async def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(security)
-) -> User:
+async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)) -> User:
     """Get the current authenticated user from the JWT token."""
     token_data = decode_token(credentials.credentials)
     user = get_user(token_data.username)
     if user is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="User not found"
-        )
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
     if user.disabled:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="User account is disabled"
+            status_code=status.HTTP_403_FORBIDDEN, detail="User account is disabled"
         )
     return user
 
 
 def require_scope(required_scope: str):
     """Dependency to require a specific scope."""
+
     async def scope_checker(user: User = Depends(get_current_user)) -> User:
         if required_scope not in user.scopes and "admin" not in user.scopes:
             raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"Scope '{required_scope}' required"
+                status_code=status.HTTP_403_FORBIDDEN, detail=f"Scope '{required_scope}' required"
             )
         return user
+
     return scope_checker

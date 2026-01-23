@@ -1,15 +1,17 @@
 """
 Unit tests for feature engineering module.
 """
-import pytest
+
+import os
+import sys
+
 import numpy as np
 import pandas as pd
-import sys
-import os
+import pytest
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
-from features import load_data, engineer_features, get_feature_columns, prepare_train_test
+from features import engineer_features, get_feature_columns, prepare_train_test
 
 
 class TestEngineerFeatures:
@@ -20,8 +22,14 @@ class TestEngineerFeatures:
         result = engineer_features(sample_dataframe)
 
         expected_columns = [
-            'Amount_Scaled', 'Hour', 'Hour_Sin', 'Hour_Cos',
-            'Amount_Zscore', 'High_Amount', 'V1_V2_Interaction', 'V1_V3_Interaction'
+            "Amount_Scaled",
+            "Hour",
+            "Hour_Sin",
+            "Hour_Cos",
+            "Amount_Zscore",
+            "High_Amount",
+            "V1_V2_Interaction",
+            "V1_V3_Interaction",
         ]
 
         for col in expected_columns:
@@ -32,32 +40,30 @@ class TestEngineerFeatures:
         result = engineer_features(sample_dataframe)
 
         # Sin and Cos should be between -1 and 1
-        assert result['Hour_Sin'].between(-1, 1).all()
-        assert result['Hour_Cos'].between(-1, 1).all()
+        assert result["Hour_Sin"].between(-1, 1).all()
+        assert result["Hour_Cos"].between(-1, 1).all()
 
         # Hour should be between 0 and 24
-        assert result['Hour'].between(0, 24).all()
+        assert result["Hour"].between(0, 24).all()
 
     def test_high_amount_is_binary(self, sample_dataframe):
         """Test that High_Amount is binary (0 or 1)."""
         result = engineer_features(sample_dataframe)
 
-        assert result['High_Amount'].isin([0, 1]).all()
+        assert result["High_Amount"].isin([0, 1]).all()
 
     def test_interaction_features_calculated_correctly(self, sample_dataframe):
         """Test that interaction features are calculated correctly."""
         result = engineer_features(sample_dataframe)
 
-        expected_v1_v2 = sample_dataframe['V1'] * sample_dataframe['V2']
-        expected_v1_v3 = sample_dataframe['V1'] * sample_dataframe['V3']
+        expected_v1_v2 = sample_dataframe["V1"] * sample_dataframe["V2"]
+        expected_v1_v3 = sample_dataframe["V1"] * sample_dataframe["V3"]
 
         np.testing.assert_array_almost_equal(
-            result['V1_V2_Interaction'].values,
-            expected_v1_v2.values
+            result["V1_V2_Interaction"].values, expected_v1_v2.values
         )
         np.testing.assert_array_almost_equal(
-            result['V1_V3_Interaction'].values,
-            expected_v1_v3.values
+            result["V1_V3_Interaction"].values, expected_v1_v3.values
         )
 
     def test_original_columns_preserved(self, sample_dataframe):
@@ -86,7 +92,7 @@ class TestGetFeatureColumns:
         features = get_feature_columns(df)
 
         for i in range(1, 29):
-            assert f'V{i}' in features
+            assert f"V{i}" in features
 
     def test_engineered_columns_included(self, sample_dataframe):
         """Test that engineered columns are included."""
@@ -94,9 +100,13 @@ class TestGetFeatureColumns:
         features = get_feature_columns(df)
 
         expected_engineered = [
-            'Amount_Scaled', 'Hour_Sin', 'Hour_Cos',
-            'Amount_Zscore', 'High_Amount',
-            'V1_V2_Interaction', 'V1_V3_Interaction'
+            "Amount_Scaled",
+            "Hour_Sin",
+            "Hour_Cos",
+            "Amount_Zscore",
+            "High_Amount",
+            "V1_V2_Interaction",
+            "V1_V3_Interaction",
         ]
 
         for col in expected_engineered:
@@ -120,7 +130,7 @@ class TestPrepareTrainTest:
     def test_test_set_unchanged(self, sample_dataframe):
         """Test that test set is not modified by SMOTE."""
         df = engineer_features(sample_dataframe)
-        original_fraud_rate = df['Class'].mean()
+        original_fraud_rate = df["Class"].mean()
 
         _, X_test, _, y_test, _ = prepare_train_test(df)
 
@@ -152,24 +162,28 @@ class TestDataTypes:
 
     def test_handles_float_columns(self):
         """Test that float columns are handled correctly."""
-        df = pd.DataFrame({
-            'Time': [0.0, 100.0, 200.0],
-            'Amount': [10.5, 20.5, 30.5],
-            'Class': [0, 0, 1],
-            **{f'V{i}': [float(i), float(i+1), float(i+2)] for i in range(1, 29)}
-        })
+        df = pd.DataFrame(
+            {
+                "Time": [0.0, 100.0, 200.0],
+                "Amount": [10.5, 20.5, 30.5],
+                "Class": [0, 0, 1],
+                **{f"V{i}": [float(i), float(i + 1), float(i + 2)] for i in range(1, 29)},
+            }
+        )
 
         result = engineer_features(df)
-        assert result['Amount_Scaled'].dtype in [np.float64, np.float32]
+        assert result["Amount_Scaled"].dtype in [np.float64, np.float32]
 
     def test_handles_zero_values(self):
         """Test that zero values don't cause issues."""
-        df = pd.DataFrame({
-            'Time': [0, 0, 0],
-            'Amount': [0, 0, 0],
-            'Class': [0, 0, 0],
-            **{f'V{i}': [0.0, 0.0, 0.0] for i in range(1, 29)}
-        })
+        df = pd.DataFrame(
+            {
+                "Time": [0, 0, 0],
+                "Amount": [0, 0, 0],
+                "Class": [0, 0, 0],
+                **{f"V{i}": [0.0, 0.0, 0.0] for i in range(1, 29)},
+            }
+        )
 
         # Should not raise any errors
         result = engineer_features(df)

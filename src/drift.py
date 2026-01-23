@@ -2,14 +2,15 @@
 Feature drift detection for fraud detection pipeline.
 Monitors distribution shifts between training and production data.
 """
+
+import logging
+from collections import deque
+from dataclasses import dataclass
+from typing import Dict, List, Optional, Tuple
+
 import numpy as np
 import pandas as pd
 from scipy import stats
-from typing import Dict, List, Optional, Tuple
-from collections import deque
-from dataclasses import dataclass, field
-import json
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -17,6 +18,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class DriftResult:
     """Result of drift detection for a single feature."""
+
     feature: str
     drift_detected: bool
     drift_score: float  # 0-1, higher = more drift
@@ -32,6 +34,7 @@ class DriftResult:
 @dataclass
 class DriftReport:
     """Complete drift report across all features."""
+
     timestamp: str
     total_features: int
     features_with_drift: int
@@ -56,10 +59,10 @@ class DriftReport:
                     "p_value": r.p_value,
                     "test_type": r.test_type,
                     "reference_mean": r.reference_mean,
-                    "current_mean": r.current_mean
+                    "current_mean": r.current_mean,
                 }
                 for r in self.feature_results
-            ]
+            ],
         }
 
 
@@ -107,7 +110,7 @@ class DriftDetector:
         feature_columns: Optional[List[str]] = None,
         window_size: int = 1000,
         drift_threshold: float = 0.1,
-        p_value_threshold: float = 0.05
+        p_value_threshold: float = 0.05,
     ):
         """
         Initialize drift detector.
@@ -143,14 +146,14 @@ class DriftDetector:
             if col in self.reference_data.columns:
                 data = self.reference_data[col].dropna().values
                 self.reference_stats[col] = {
-                    'mean': float(np.mean(data)),
-                    'std': float(np.std(data)),
-                    'min': float(np.min(data)),
-                    'max': float(np.max(data)),
-                    'median': float(np.median(data)),
-                    'q25': float(np.percentile(data, 25)),
-                    'q75': float(np.percentile(data, 75)),
-                    'data': data  # Store for statistical tests
+                    "mean": float(np.mean(data)),
+                    "std": float(np.std(data)),
+                    "min": float(np.min(data)),
+                    "max": float(np.max(data)),
+                    "median": float(np.median(data)),
+                    "q25": float(np.percentile(data, 25)),
+                    "q75": float(np.percentile(data, 75)),
+                    "data": data,  # Store for statistical tests
                 }
 
     def set_reference_stats(self, stats: Dict[str, dict]):
@@ -172,7 +175,7 @@ class DriftDetector:
         if feature not in self.reference_stats:
             return 0.0, 1.0
 
-        ref_data = self.reference_stats[feature].get('data')
+        ref_data = self.reference_stats[feature].get("data")
         if ref_data is None:
             return 0.0, 1.0
 
@@ -182,7 +185,7 @@ class DriftDetector:
     def _detect_feature_drift(self, feature: str, current_data: np.ndarray) -> DriftResult:
         """Detect drift for a single feature."""
         ref_stats = self.reference_stats.get(feature, {})
-        ref_data = ref_stats.get('data', np.array([]))
+        ref_data = ref_stats.get("data", np.array([]))
 
         # Calculate current statistics
         current_mean = float(np.mean(current_data))
@@ -210,10 +213,10 @@ class DriftDetector:
             p_value=p_value,
             test_statistic=ks_statistic,
             test_type="KS-test + PSI",
-            reference_mean=ref_stats.get('mean', 0.0),
+            reference_mean=ref_stats.get("mean", 0.0),
             current_mean=current_mean,
-            reference_std=ref_stats.get('std', 0.0),
-            current_std=current_std
+            reference_std=ref_stats.get("std", 0.0),
+            current_std=current_std,
         )
 
     def detect_drift(self, min_samples: int = 100) -> Optional[DriftReport]:
@@ -227,7 +230,9 @@ class DriftDetector:
             DriftReport if enough samples, None otherwise
         """
         if len(self.production_buffer) < min_samples:
-            logger.info(f"Not enough samples for drift detection: {len(self.production_buffer)}/{min_samples}")
+            logger.info(
+                f"Not enough samples for drift detection: {len(self.production_buffer)}/{min_samples}"
+            )
             return None
 
         # Convert buffer to DataFrame
@@ -264,7 +269,7 @@ class DriftDetector:
             overall_drift_score=overall_drift_score,
             drift_detected=drift_detected,
             feature_results=feature_results,
-            sample_size=len(self.production_buffer)
+            sample_size=len(self.production_buffer),
         )
 
     def get_feature_stats(self) -> Dict[str, dict]:
@@ -279,11 +284,11 @@ class DriftDetector:
             if feature in current_df.columns:
                 data = current_df[feature].dropna()
                 stats[feature] = {
-                    'count': len(data),
-                    'mean': float(data.mean()),
-                    'std': float(data.std()),
-                    'min': float(data.min()),
-                    'max': float(data.max())
+                    "count": len(data),
+                    "mean": float(data.mean()),
+                    "std": float(data.std()),
+                    "min": float(data.min()),
+                    "max": float(data.max()),
                 }
 
         return stats
@@ -302,15 +307,11 @@ def get_drift_detector() -> DriftDetector:
 
 
 def initialize_drift_detector(
-    reference_data: pd.DataFrame,
-    feature_columns: List[str],
-    **kwargs
+    reference_data: pd.DataFrame, feature_columns: List[str], **kwargs
 ) -> DriftDetector:
     """Initialize global drift detector with reference data."""
     global _drift_detector
     _drift_detector = DriftDetector(
-        reference_data=reference_data,
-        feature_columns=feature_columns,
-        **kwargs
+        reference_data=reference_data, feature_columns=feature_columns, **kwargs
     )
     return _drift_detector

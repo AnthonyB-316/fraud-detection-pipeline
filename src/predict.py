@@ -2,12 +2,14 @@
 Prediction module for fraud detection with SHAP explainability.
 Loads trained model and makes predictions on new transactions.
 """
-import joblib
-import pandas as pd
-import numpy as np
-import shap
-from typing import Dict, List, Optional, Tuple
+
 import logging
+from typing import Dict, List, Optional
+
+import joblib
+import numpy as np
+import pandas as pd
+import shap
 
 logger = logging.getLogger(__name__)
 
@@ -27,10 +29,10 @@ class FraudDetector:
     def __init__(self, model_path: str = MODEL_PATH):
         """Load trained model and initialize SHAP explainer."""
         checkpoint = joblib.load(model_path)
-        self.model = checkpoint['model']
-        self.threshold = checkpoint['threshold']
-        self.feature_cols = checkpoint['feature_cols']
-        self.metrics = checkpoint['metrics']
+        self.model = checkpoint["model"]
+        self.threshold = checkpoint["threshold"]
+        self.feature_cols = checkpoint["feature_cols"]
+        self.metrics = checkpoint["metrics"]
 
         # Initialize SHAP explainer (lazy loading)
         self._explainer: Optional[shap.TreeExplainer] = None
@@ -57,14 +59,14 @@ class FraudDetector:
         amount_mean = 88.35
         amount_std = 250.12
 
-        df['Amount_Scaled'] = (df['Amount'] - amount_mean) / amount_std
-        df['Hour'] = (df['Time'] / 3600) % 24
-        df['Hour_Sin'] = np.sin(2 * np.pi * df['Hour'] / 24)
-        df['Hour_Cos'] = np.cos(2 * np.pi * df['Hour'] / 24)
-        df['Amount_Zscore'] = (df['Amount'] - amount_mean) / amount_std
-        df['High_Amount'] = (df['Amount_Zscore'] > 2).astype(int)
-        df['V1_V2_Interaction'] = df['V1'] * df['V2']
-        df['V1_V3_Interaction'] = df['V1'] * df['V3']
+        df["Amount_Scaled"] = (df["Amount"] - amount_mean) / amount_std
+        df["Hour"] = (df["Time"] / 3600) % 24
+        df["Hour_Sin"] = np.sin(2 * np.pi * df["Hour"] / 24)
+        df["Hour_Cos"] = np.cos(2 * np.pi * df["Hour"] / 24)
+        df["Amount_Zscore"] = (df["Amount"] - amount_mean) / amount_std
+        df["High_Amount"] = (df["Amount_Zscore"] > 2).astype(int)
+        df["V1_V2_Interaction"] = df["V1"] * df["V2"]
+        df["V1_V3_Interaction"] = df["V1"] * df["V3"]
 
         return df[self.feature_cols]
 
@@ -75,25 +77,25 @@ class FraudDetector:
         amount_mean = 88.35
         amount_std = 250.12
 
-        df['Amount_Scaled'] = (df['Amount'] - amount_mean) / amount_std
-        df['Hour'] = (df['Time'] / 3600) % 24
-        df['Hour_Sin'] = np.sin(2 * np.pi * df['Hour'] / 24)
-        df['Hour_Cos'] = np.cos(2 * np.pi * df['Hour'] / 24)
-        df['Amount_Zscore'] = (df['Amount'] - amount_mean) / amount_std
-        df['High_Amount'] = (df['Amount_Zscore'] > 2).astype(int)
-        df['V1_V2_Interaction'] = df['V1'] * df['V2']
-        df['V1_V3_Interaction'] = df['V1'] * df['V3']
+        df["Amount_Scaled"] = (df["Amount"] - amount_mean) / amount_std
+        df["Hour"] = (df["Time"] / 3600) % 24
+        df["Hour_Sin"] = np.sin(2 * np.pi * df["Hour"] / 24)
+        df["Hour_Cos"] = np.cos(2 * np.pi * df["Hour"] / 24)
+        df["Amount_Zscore"] = (df["Amount"] - amount_mean) / amount_std
+        df["High_Amount"] = (df["Amount_Zscore"] > 2).astype(int)
+        df["V1_V2_Interaction"] = df["V1"] * df["V2"]
+        df["V1_V3_Interaction"] = df["V1"] * df["V3"]
 
         return df[self.feature_cols]
 
     def _get_risk_level(self, proba: float) -> str:
         """Classify risk level based on probability."""
         if proba < 0.3:
-            return 'LOW'
+            return "LOW"
         elif proba < 0.6:
-            return 'MEDIUM'
+            return "MEDIUM"
         else:
-            return 'HIGH'
+            return "HIGH"
 
     def predict(self, transaction: Dict) -> Dict:
         """
@@ -112,10 +114,10 @@ class FraudDetector:
         is_fraud = proba >= self.threshold
 
         return {
-            'fraud_probability': float(proba),
-            'is_fraud': bool(is_fraud),
-            'threshold': self.threshold,
-            'risk_level': self._get_risk_level(proba)
+            "fraud_probability": float(proba),
+            "is_fraud": bool(is_fraud),
+            "threshold": self.threshold,
+            "risk_level": self._get_risk_level(proba),
         }
 
     def predict_batch(self, transactions: List[Dict]) -> List[Dict]:
@@ -129,12 +131,14 @@ class FraudDetector:
         results = []
         for proba in probas:
             is_fraud = proba >= self.threshold
-            results.append({
-                'fraud_probability': float(proba),
-                'is_fraud': bool(is_fraud),
-                'threshold': self.threshold,
-                'risk_level': self._get_risk_level(proba)
-            })
+            results.append(
+                {
+                    "fraud_probability": float(proba),
+                    "is_fraud": bool(is_fraud),
+                    "threshold": self.threshold,
+                    "risk_level": self._get_risk_level(proba),
+                }
+            )
 
         return results
 
@@ -171,29 +175,33 @@ class FraudDetector:
         # Get feature contributions
         feature_contributions = []
         for i, (feature, shap_val) in enumerate(zip(self.feature_cols, shap_vals)):
-            feature_contributions.append({
-                'feature': feature,
-                'contribution': float(shap_val),
-                'value': float(X.iloc[0, i]),
-                'abs_contribution': abs(float(shap_val))
-            })
+            feature_contributions.append(
+                {
+                    "feature": feature,
+                    "contribution": float(shap_val),
+                    "value": float(X.iloc[0, i]),
+                    "abs_contribution": abs(float(shap_val)),
+                }
+            )
 
         # Sort by absolute contribution
-        feature_contributions.sort(key=lambda x: x['abs_contribution'], reverse=True)
+        feature_contributions.sort(key=lambda x: x["abs_contribution"], reverse=True)
 
         # Get top K features
         top_features = [
             {
-                'feature': f['feature'],
-                'contribution': f['contribution'],
-                'value': f['value'],
-                'direction': 'increases fraud risk' if f['contribution'] > 0 else 'decreases fraud risk'
+                "feature": f["feature"],
+                "contribution": f["contribution"],
+                "value": f["value"],
+                "direction": (
+                    "increases fraud risk" if f["contribution"] > 0 else "decreases fraud risk"
+                ),
             }
             for f in feature_contributions[:top_k]
         ]
 
         # Base value (expected value)
-        if hasattr(self.explainer, 'expected_value'):
+        if hasattr(self.explainer, "expected_value"):
             if isinstance(self.explainer.expected_value, (list, np.ndarray)):
                 base_value = float(self.explainer.expected_value[1])
             else:
@@ -202,16 +210,16 @@ class FraudDetector:
             base_value = 0.0
 
         return {
-            'prediction': prediction,
-            'explanation': {
-                'base_value': base_value,
-                'output_value': float(sum(shap_vals) + base_value),
-                'top_features': top_features,
-                'feature_count': len(self.feature_cols),
-                'all_shap_values': {
+            "prediction": prediction,
+            "explanation": {
+                "base_value": base_value,
+                "output_value": float(sum(shap_vals) + base_value),
+                "top_features": top_features,
+                "feature_count": len(self.feature_cols),
+                "all_shap_values": {
                     feat: float(val) for feat, val in zip(self.feature_cols, shap_vals)
-                }
-            }
+                },
+            },
         }
 
     def explain_batch(self, transactions: List[Dict], top_k: int = 5) -> List[Dict]:
@@ -235,7 +243,7 @@ class FraudDetector:
             shap_vals_batch = shap_values
 
         # Get base value
-        if hasattr(self.explainer, 'expected_value'):
+        if hasattr(self.explainer, "expected_value"):
             if isinstance(self.explainer.expected_value, (list, np.ndarray)):
                 base_value = float(self.explainer.expected_value[1])
             else:
@@ -254,20 +262,19 @@ class FraudDetector:
 
             top_features = [
                 {
-                    'feature': feat,
-                    'contribution': val,
-                    'direction': 'increases fraud risk' if val > 0 else 'decreases fraud risk'
+                    "feature": feat,
+                    "contribution": val,
+                    "direction": "increases fraud risk" if val > 0 else "decreases fraud risk",
                 }
                 for feat, val, _ in contributions[:top_k]
             ]
 
-            results.append({
-                'prediction': pred,
-                'explanation': {
-                    'base_value': base_value,
-                    'top_features': top_features
+            results.append(
+                {
+                    "prediction": pred,
+                    "explanation": {"base_value": base_value, "top_features": top_features},
                 }
-            })
+            )
 
         return results
 
@@ -277,9 +284,7 @@ class FraudDetector:
         return {
             feat: float(imp)
             for feat, imp in sorted(
-                zip(self.feature_cols, importance),
-                key=lambda x: x[1],
-                reverse=True
+                zip(self.feature_cols, importance), key=lambda x: x[1], reverse=True
             )
         }
 
@@ -289,15 +294,36 @@ if __name__ == "__main__":
     detector = FraudDetector()
 
     sample = {
-        'Time': 0,
-        'V1': -1.359807, 'V2': -0.072781, 'V3': 2.536347, 'V4': 1.378155,
-        'V5': -0.338321, 'V6': 0.462388, 'V7': 0.239599, 'V8': 0.098698,
-        'V9': 0.363787, 'V10': 0.090794, 'V11': -0.551600, 'V12': -0.617801,
-        'V13': -0.991390, 'V14': -0.311169, 'V15': 1.468177, 'V16': -0.470401,
-        'V17': 0.207971, 'V18': 0.025791, 'V19': 0.403993, 'V20': 0.251412,
-        'V21': -0.018307, 'V22': 0.277838, 'V23': -0.110474, 'V24': 0.066928,
-        'V25': 0.128539, 'V26': -0.189115, 'V27': 0.133558, 'V28': -0.021053,
-        'Amount': 149.62
+        "Time": 0,
+        "V1": -1.359807,
+        "V2": -0.072781,
+        "V3": 2.536347,
+        "V4": 1.378155,
+        "V5": -0.338321,
+        "V6": 0.462388,
+        "V7": 0.239599,
+        "V8": 0.098698,
+        "V9": 0.363787,
+        "V10": 0.090794,
+        "V11": -0.551600,
+        "V12": -0.617801,
+        "V13": -0.991390,
+        "V14": -0.311169,
+        "V15": 1.468177,
+        "V16": -0.470401,
+        "V17": 0.207971,
+        "V18": 0.025791,
+        "V19": 0.403993,
+        "V20": 0.251412,
+        "V21": -0.018307,
+        "V22": 0.277838,
+        "V23": -0.110474,
+        "V24": 0.066928,
+        "V25": 0.128539,
+        "V26": -0.189115,
+        "V27": 0.133558,
+        "V28": -0.021053,
+        "Amount": 149.62,
     }
 
     print("=== Basic Prediction ===")
@@ -308,6 +334,6 @@ if __name__ == "__main__":
 
     print("\n=== Prediction with Explanation ===")
     explained = detector.explain(sample)
-    print(f"\nTop contributing features:")
-    for feat in explained['explanation']['top_features'][:5]:
+    print("\nTop contributing features:")
+    for feat in explained["explanation"]["top_features"][:5]:
         print(f"  {feat['feature']}: {feat['contribution']:+.4f} ({feat['direction']})")

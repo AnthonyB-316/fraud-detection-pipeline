@@ -2,33 +2,45 @@
 FastAPI service for fraud detection inference.
 Features: JWT Auth, Rate Limiting, SHAP Explainability, Prometheus Metrics, Drift Detection
 """
-import sys
-import os
-import time
+
 import logging
+import os
+import sys
+import time
 from contextlib import asynccontextmanager
 from typing import List, Optional
 
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'src'))
+sys.path.append(os.path.join(os.path.dirname(__file__), "..", "src"))
 
-from fastapi import FastAPI, HTTPException, Depends, Request, Response
+from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.security import HTTPBasic
 from pydantic import BaseModel, Field
 from slowapi import Limiter
-from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
+from slowapi.util import get_remote_address
 
-from predict import FraudDetector
 from auth import (
-    Token, User, authenticate_user, create_access_token, create_refresh_token,
-    get_current_user, require_scope, decode_token
-)
-from metrics import (
-    MetricsMiddleware, get_metrics, set_model_info, record_prediction,
-    record_transaction_amount, PREDICTION_LATENCY, AUTH_EVENTS, DRIFT_SCORE
+    Token,
+    User,
+    authenticate_user,
+    create_access_token,
+    create_refresh_token,
+    decode_token,
+    get_current_user,
+    require_scope,
 )
 from drift import DriftDetector, get_drift_detector
+from metrics import (
+    AUTH_EVENTS,
+    DRIFT_SCORE,
+    PREDICTION_LATENCY,
+    MetricsMiddleware,
+    get_metrics,
+    record_prediction,
+    record_transaction_amount,
+    set_model_info,
+)
+from predict import FraudDetector
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -141,7 +153,7 @@ async def lifespan(app: FastAPI):
             model_name="fraud_xgboost",
             version="1.0.0",
             threshold=detector.threshold,
-            metrics=detector.metrics
+            metrics=detector.metrics,
         )
 
         # Initialize drift detector
@@ -181,7 +193,7 @@ app = FastAPI(
     - api_user / api123 (read + write)
     """,
     version="1.0.0",
-    lifespan=lifespan
+    lifespan=lifespan,
 )
 
 # Add middlewares
@@ -194,13 +206,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
 # Rate limit error handler
 @app.exception_handler(RateLimitExceeded)
 async def rate_limit_handler(request: Request, exc: RateLimitExceeded):
     return Response(
         content='{"detail": "Rate limit exceeded. Please slow down."}',
         status_code=429,
-        media_type="application/json"
+        media_type="application/json",
     )
 
 
@@ -225,12 +238,8 @@ async def login(request: Request, login_req: LoginRequest):
 
     AUTH_EVENTS.labels(event_type="login", success="true").inc()
 
-    access_token = create_access_token(
-        data={"sub": user.username, "scopes": user.scopes}
-    )
-    refresh_token = create_refresh_token(
-        data={"sub": user.username, "scopes": user.scopes}
-    )
+    access_token = create_access_token(data={"sub": user.username, "scopes": user.scopes})
+    refresh_token = create_refresh_token(data={"sub": user.username, "scopes": user.scopes})
 
     return Token(access_token=access_token, refresh_token=refresh_token)
 
@@ -258,7 +267,7 @@ async def get_current_user_info(user: User = Depends(get_current_user)):
         "username": user.username,
         "email": user.email,
         "full_name": user.full_name,
-        "scopes": user.scopes
+        "scopes": user.scopes,
     }
 
 
@@ -269,8 +278,7 @@ async def get_current_user_info(user: User = Depends(get_current_user)):
 async def health_check():
     """Health check endpoint."""
     return HealthResponse(
-        status="healthy" if detector else "unhealthy",
-        model_loaded=detector is not None
+        status="healthy" if detector else "unhealthy", model_loaded=detector is not None
     )
 
 
@@ -290,7 +298,7 @@ async def get_model_info(user: User = Depends(require_scope("read"))):
     return MetricsResponse(
         threshold=detector.threshold,
         training_metrics=detector.metrics,
-        feature_importance=detector.get_feature_importance()
+        feature_importance=detector.get_feature_importance(),
     )
 
 
@@ -300,9 +308,7 @@ async def get_model_info(user: User = Depends(require_scope("read"))):
 @app.post("/predict", response_model=PredictionResponse, tags=["Predictions"])
 @limiter.limit("100/minute")
 async def predict_single(
-    request: Request,
-    transaction: Transaction,
-    user: User = Depends(require_scope("read"))
+    request: Request, transaction: Transaction, user: User = Depends(require_scope("read"))
 ):
     """
     Predict fraud probability for a single transaction.
@@ -330,20 +336,18 @@ async def predict_single(
         drift_detector.add_sample(transaction.model_dump())
 
     return PredictionResponse(
-        fraud_probability=result['fraud_probability'],
-        is_fraud=result['is_fraud'],
-        risk_level=result['risk_level'],
-        threshold=result['threshold'],
-        latency_ms=round(latency, 2)
+        fraud_probability=result["fraud_probability"],
+        is_fraud=result["is_fraud"],
+        risk_level=result["risk_level"],
+        threshold=result["threshold"],
+        latency_ms=round(latency, 2),
     )
 
 
 @app.post("/predict/batch", response_model=BatchPredictionResponse, tags=["Predictions"])
 @limiter.limit("20/minute")
 async def predict_batch(
-    request: Request,
-    transactions: List[Transaction],
-    user: User = Depends(require_scope("write"))
+    request: Request, transactions: List[Transaction], user: User = Depends(require_scope("write"))
 ):
     """
     Batch prediction for multiple transactions.
@@ -366,11 +370,11 @@ async def predict_batch(
 
     predictions = [
         PredictionResponse(
-            fraud_probability=r['fraud_probability'],
-            is_fraud=r['is_fraud'],
-            risk_level=r['risk_level'],
-            threshold=r['threshold'],
-            latency_ms=0
+            fraud_probability=r["fraud_probability"],
+            is_fraud=r["is_fraud"],
+            risk_level=r["risk_level"],
+            threshold=r["threshold"],
+            latency_ms=0,
         )
         for r in results
     ]
@@ -378,8 +382,8 @@ async def predict_batch(
     return BatchPredictionResponse(
         predictions=predictions,
         total_transactions=len(transactions),
-        flagged_count=sum(1 for r in results if r['is_fraud']),
-        latency_ms=round(latency, 2)
+        flagged_count=sum(1 for r in results if r["is_fraud"]),
+        latency_ms=round(latency, 2),
     )
 
 
@@ -389,7 +393,7 @@ async def predict_with_explanation(
     request: Request,
     transaction: Transaction,
     top_k: int = 10,
-    user: User = Depends(require_scope("read"))
+    user: User = Depends(require_scope("read")),
 ):
     """
     Predict with SHAP explanation.
@@ -410,19 +414,18 @@ async def predict_with_explanation(
     latency = (time.time() - start) * 1000
 
     # Record metrics
-    record_prediction(result['prediction'])
+    record_prediction(result["prediction"])
 
     prediction_response = PredictionResponse(
-        fraud_probability=result['prediction']['fraud_probability'],
-        is_fraud=result['prediction']['is_fraud'],
-        risk_level=result['prediction']['risk_level'],
-        threshold=result['prediction']['threshold'],
-        latency_ms=round(latency, 2)
+        fraud_probability=result["prediction"]["fraud_probability"],
+        is_fraud=result["prediction"]["is_fraud"],
+        risk_level=result["prediction"]["risk_level"],
+        threshold=result["prediction"]["threshold"],
+        latency_ms=round(latency, 2),
     )
 
     return ExplainedPredictionResponse(
-        prediction=prediction_response,
-        explanation=result['explanation']
+        prediction=prediction_response, explanation=result["explanation"]
     )
 
 
@@ -446,7 +449,7 @@ async def get_drift_status(user: User = Depends(require_scope("read"))):
         return {
             "status": "insufficient_data",
             "message": f"Need more samples. Current: {len(drift_detector.production_buffer)}",
-            "min_required": 50
+            "min_required": 50,
         }
 
     # Update drift metrics
@@ -465,7 +468,7 @@ async def get_production_stats(user: User = Depends(require_scope("read"))):
     return {
         "sample_count": len(drift_detector.production_buffer),
         "window_size": drift_detector.window_size,
-        "feature_stats": drift_detector.get_feature_stats()
+        "feature_stats": drift_detector.get_feature_stats(),
     }
 
 
@@ -474,4 +477,5 @@ async def get_production_stats(user: User = Depends(require_scope("read"))):
 # ===================
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+
+    uvicorn.run(app, host="0.0.0.0", port=8000)  # nosec B104 - intended for Docker

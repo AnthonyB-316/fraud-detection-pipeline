@@ -1,12 +1,14 @@
 """
 Unit tests for FastAPI endpoints.
 """
-import pytest
-import sys
-import os
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'api'))
+import os
+import sys
+
+import pytest
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "api"))
 
 
 class TestHealthEndpoint:
@@ -23,6 +25,7 @@ class TestHealthEndpoint:
             pytest.skip("Model file not available")
 
         from app import app
+
         return TestClient(app)
 
     def test_health_returns_200(self, client):
@@ -51,14 +54,12 @@ class TestAuthEndpoints:
             pytest.skip("Model file not available")
 
         from app import app
+
         return TestClient(app)
 
     def test_login_with_valid_credentials(self, client):
         """Test successful login."""
-        response = client.post("/auth/login", json={
-            "username": "admin",
-            "password": "admin123"
-        })
+        response = client.post("/auth/login", json={"username": "admin", "password": "admin123"})
 
         assert response.status_code == 200
         data = response.json()
@@ -67,19 +68,17 @@ class TestAuthEndpoints:
 
     def test_login_with_invalid_credentials(self, client):
         """Test login with wrong password."""
-        response = client.post("/auth/login", json={
-            "username": "admin",
-            "password": "wrongpassword"
-        })
+        response = client.post(
+            "/auth/login", json={"username": "admin", "password": "wrongpassword"}
+        )
 
         assert response.status_code == 401
 
     def test_login_with_nonexistent_user(self, client):
         """Test login with non-existent user."""
-        response = client.post("/auth/login", json={
-            "username": "nonexistent",
-            "password": "password"
-        })
+        response = client.post(
+            "/auth/login", json={"username": "nonexistent", "password": "password"}
+        )
 
         assert response.status_code == 401
 
@@ -96,15 +95,13 @@ class TestPredictEndpoint:
             pytest.skip("Model file not available")
 
         from app import app
+
         return TestClient(app)
 
     @pytest.fixture
     def auth_token(self, client):
         """Get auth token for protected endpoints."""
-        response = client.post("/auth/login", json={
-            "username": "admin",
-            "password": "admin123"
-        })
+        response = client.post("/auth/login", json={"username": "admin", "password": "admin123"})
         return response.json()["access_token"]
 
     def test_predict_requires_auth(self, client, sample_transaction):
@@ -117,9 +114,7 @@ class TestPredictEndpoint:
     def test_predict_with_auth(self, client, auth_token, sample_transaction):
         """Test successful prediction with authentication."""
         response = client.post(
-            "/predict",
-            json=sample_transaction,
-            headers={"Authorization": f"Bearer {auth_token}"}
+            "/predict", json=sample_transaction, headers={"Authorization": f"Bearer {auth_token}"}
         )
 
         assert response.status_code == 200
@@ -133,9 +128,7 @@ class TestPredictEndpoint:
     def test_predict_probability_range(self, client, auth_token, sample_transaction):
         """Test that fraud probability is between 0 and 1."""
         response = client.post(
-            "/predict",
-            json=sample_transaction,
-            headers={"Authorization": f"Bearer {auth_token}"}
+            "/predict", json=sample_transaction, headers={"Authorization": f"Bearer {auth_token}"}
         )
 
         data = response.json()
@@ -148,7 +141,7 @@ class TestPredictEndpoint:
         response = client.post(
             "/predict",
             json=incomplete_transaction,
-            headers={"Authorization": f"Bearer {auth_token}"}
+            headers={"Authorization": f"Bearer {auth_token}"},
         )
 
         assert response.status_code == 422  # Validation error
@@ -166,15 +159,15 @@ class TestBatchPredictEndpoint:
             pytest.skip("Model file not available")
 
         from app import app
+
         return TestClient(app)
 
     @pytest.fixture
     def auth_token(self, client):
         """Get auth token with write scope."""
-        response = client.post("/auth/login", json={
-            "username": "api_user",  # Has write scope
-            "password": "api123"
-        })
+        response = client.post(
+            "/auth/login", json={"username": "api_user", "password": "api123"}  # Has write scope
+        )
         return response.json()["access_token"]
 
     def test_batch_predict_returns_multiple(self, client, auth_token, batch_transactions):
@@ -182,7 +175,7 @@ class TestBatchPredictEndpoint:
         response = client.post(
             "/predict/batch",
             json=batch_transactions,
-            headers={"Authorization": f"Bearer {auth_token}"}
+            headers={"Authorization": f"Bearer {auth_token}"},
         )
 
         assert response.status_code == 200
@@ -196,7 +189,7 @@ class TestBatchPredictEndpoint:
         response = client.post(
             "/predict/batch",
             json=batch_transactions,
-            headers={"Authorization": f"Bearer {auth_token}"}
+            headers={"Authorization": f"Bearer {auth_token}"},
         )
 
         data = response.json()
@@ -216,15 +209,13 @@ class TestExplainEndpoint:
             pytest.skip("Model file not available")
 
         from app import app
+
         return TestClient(app)
 
     @pytest.fixture
     def auth_token(self, client):
         """Get auth token."""
-        response = client.post("/auth/login", json={
-            "username": "admin",
-            "password": "admin123"
-        })
+        response = client.post("/auth/login", json={"username": "admin", "password": "admin123"})
         return response.json()["access_token"]
 
     def test_explain_returns_explanation(self, client, auth_token, sample_transaction):
@@ -232,7 +223,7 @@ class TestExplainEndpoint:
         response = client.post(
             "/predict/explain",
             json=sample_transaction,
-            headers={"Authorization": f"Bearer {auth_token}"}
+            headers={"Authorization": f"Bearer {auth_token}"},
         )
 
         assert response.status_code == 200
@@ -247,7 +238,7 @@ class TestExplainEndpoint:
         response = client.post(
             "/predict/explain?top_k=5",
             json=sample_transaction,
-            headers={"Authorization": f"Bearer {auth_token}"}
+            headers={"Authorization": f"Bearer {auth_token}"},
         )
 
         data = response.json()
@@ -273,6 +264,7 @@ class TestMetricsEndpoint:
             pytest.skip("Model file not available")
 
         from app import app
+
         return TestClient(app)
 
     def test_metrics_returns_prometheus_format(self, client):
@@ -303,23 +295,18 @@ class TestDriftEndpoints:
             pytest.skip("Model file not available")
 
         from app import app
+
         return TestClient(app)
 
     @pytest.fixture
     def auth_token(self, client):
         """Get auth token."""
-        response = client.post("/auth/login", json={
-            "username": "admin",
-            "password": "admin123"
-        })
+        response = client.post("/auth/login", json={"username": "admin", "password": "admin123"})
         return response.json()["access_token"]
 
     def test_drift_status_returns_result(self, client, auth_token):
         """Test that drift status endpoint returns a result."""
-        response = client.get(
-            "/drift/status",
-            headers={"Authorization": f"Bearer {auth_token}"}
-        )
+        response = client.get("/drift/status", headers={"Authorization": f"Bearer {auth_token}"})
 
         assert response.status_code == 200
         data = response.json()
@@ -329,10 +316,7 @@ class TestDriftEndpoints:
 
     def test_drift_stats_returns_result(self, client, auth_token):
         """Test that drift stats endpoint returns statistics."""
-        response = client.get(
-            "/drift/stats",
-            headers={"Authorization": f"Bearer {auth_token}"}
-        )
+        response = client.get("/drift/stats", headers={"Authorization": f"Bearer {auth_token}"})
 
         assert response.status_code == 200
         data = response.json()
