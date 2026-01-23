@@ -2,6 +2,8 @@
 
 Real-time credit card fraud detection API. Built with XGBoost on the Kaggle credit card dataset (284K transactions, 0.17% fraud rate).
 
+**[Try the Live Demo](https://huggingface.co/spaces/AB-316/fraud-detection)**
+
 ## Results
 
 - **94% recall** at 5% false positive rate
