@@ -38,7 +38,10 @@ def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
 
     amount_mean = df["Amount"].mean()
     amount_std = df["Amount"].std()
-    df["Amount_Zscore"] = (df["Amount"] - amount_mean) / amount_std
+    if amount_std == 0:
+        df["Amount_Zscore"] = 0.0
+    else:
+        df["Amount_Zscore"] = (df["Amount"] - amount_mean) / amount_std
 
     df["High_Amount"] = (df["Amount_Zscore"] > 2).astype(int)
 

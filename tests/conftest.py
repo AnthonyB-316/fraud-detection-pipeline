@@ -98,13 +98,19 @@ def batch_transactions(sample_transaction, fraudulent_transaction):
 def sample_dataframe():
     """Sample DataFrame with credit card transactions."""
     np.random.seed(42)
-    n_samples = 100
+    n_samples = 200
 
     data = {
         "Time": np.random.uniform(0, 172800, n_samples),
         "Amount": np.random.exponential(100, n_samples),
-        "Class": np.random.choice([0, 1], n_samples, p=[0.99, 0.01]),
+        "Class": np.zeros(n_samples, dtype=int),
     }
+
+    # Need 10+ fraud samples so ~8 end up in training after 80/20 split
+    # SMOTE requires k_neighbors+1 (default 6) samples in minority class
+    fraud_indices = [10, 25, 40, 60, 80, 100, 120, 140, 160, 180]
+    for idx in fraud_indices:
+        data["Class"][idx] = 1
 
     # Add V1-V28 features
     for i in range(1, 29):
