@@ -194,7 +194,9 @@ class FraudDetector:
                 "contribution": f["contribution"],
                 "value": f["value"],
                 "direction": (
-                    "increases fraud risk" if f["contribution"] > 0 else "decreases fraud risk"
+                    "increases fraud risk"
+                    if f["contribution"] > 0
+                    else "decreases fraud risk"
                 ),
             }
             for f in feature_contributions[:top_k]
@@ -264,7 +266,9 @@ class FraudDetector:
                 {
                     "feature": feat,
                     "contribution": val,
-                    "direction": "increases fraud risk" if val > 0 else "decreases fraud risk",
+                    "direction": (
+                        "increases fraud risk" if val > 0 else "decreases fraud risk"
+                    ),
                 }
                 for feat, val, _ in contributions[:top_k]
             ]
@@ -272,7 +276,10 @@ class FraudDetector:
             results.append(
                 {
                     "prediction": pred,
-                    "explanation": {"base_value": base_value, "top_features": top_features},
+                    "explanation": {
+                        "base_value": base_value,
+                        "top_features": top_features,
+                    },
                 }
             )
 

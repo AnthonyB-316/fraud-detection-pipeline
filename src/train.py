@@ -137,7 +137,9 @@ def find_optimal_threshold(model, X_test, y_test, target_recall=0.90):
         if recall <= target_recall and i > 0:
             optimal_threshold = thresholds[i - 1]
             optimal_precision = precisions[i - 1]
-            print(f"\nOptimal threshold for {target_recall:.0%} recall: {optimal_threshold:.4f}")
+            print(
+                f"\nOptimal threshold for {target_recall:.0%} recall: {optimal_threshold:.4f}"
+            )
             print(f"  Precision at this threshold: {optimal_precision:.4f}")
             return optimal_threshold
 
@@ -241,7 +243,11 @@ def main(use_mlflow=True, target_recall=0.94):
         if use_mlflow:
             mlflow.log_param("optimal_threshold", optimal_threshold)
             mlflow.log_metrics(
-                {f"optimal_{k}": v for k, v in metrics.items() if isinstance(v, (int, float))}
+                {
+                    f"optimal_{k}": v
+                    for k, v in metrics.items()
+                    if isinstance(v, (int, float))
+                }
             )
 
         # Save model
@@ -300,7 +306,9 @@ if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser(description="Train fraud detection model")
-    parser.add_argument("--no-mlflow", action="store_true", help="Disable MLflow tracking")
+    parser.add_argument(
+        "--no-mlflow", action="store_true", help="Disable MLflow tracking"
+    )
     parser.add_argument(
         "--target-recall", type=float, default=0.94, help="Target recall for threshold"
     )

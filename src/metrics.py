@@ -17,14 +17,18 @@ from prometheus_client import (
 # Counters
 # ===================
 PREDICTIONS_TOTAL = Counter(
-    "fraud_predictions_total", "Total number of fraud predictions made", ["result", "risk_level"]
+    "fraud_predictions_total",
+    "Total number of fraud predictions made",
+    ["result", "risk_level"],
 )
 
 REQUESTS_TOTAL = Counter(
     "http_requests_total", "Total HTTP requests", ["method", "endpoint", "status"]
 )
 
-AUTH_EVENTS = Counter("auth_events_total", "Authentication events", ["event_type", "success"])
+AUTH_EVENTS = Counter(
+    "auth_events_total", "Authentication events", ["event_type", "success"]
+)
 
 # ===================
 # Histograms
@@ -59,7 +63,9 @@ TRANSACTION_AMOUNT = Histogram(
 # ===================
 MODEL_THRESHOLD = Gauge("fraud_model_threshold", "Current fraud detection threshold")
 
-FRAUD_RATE = Gauge("fraud_detection_rate", "Rolling fraud detection rate (flagged/total)")
+FRAUD_RATE = Gauge(
+    "fraud_detection_rate", "Rolling fraud detection rate (flagged/total)"
+)
 
 DRIFT_SCORE = Gauge(
     "feature_drift_score", "Feature drift score (0=no drift, 1=high drift)", ["feature"]
@@ -138,7 +144,9 @@ class MetricsMiddleware:
             # Normalize path for metrics (remove IDs)
             endpoint = self._normalize_path(path)
 
-            REQUESTS_TOTAL.labels(method=method, endpoint=endpoint, status=str(status_code)).inc()
+            REQUESTS_TOTAL.labels(
+                method=method, endpoint=endpoint, status=str(status_code)
+            ).inc()
 
             REQUEST_LATENCY.labels(method=method, endpoint=endpoint).observe(latency)
 

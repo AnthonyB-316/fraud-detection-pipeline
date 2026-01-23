@@ -154,7 +154,9 @@ class TestFraudDetectorExplain:
         assert "top_features" in result["explanation"]
         assert "base_value" in result["explanation"]
 
-    def test_explain_top_features_sorted_by_importance(self, detector, sample_transaction):
+    def test_explain_top_features_sorted_by_importance(
+        self, detector, sample_transaction
+    ):
         """Test that top features are sorted by absolute contribution."""
         result = detector.explain(sample_transaction, top_k=5)
 

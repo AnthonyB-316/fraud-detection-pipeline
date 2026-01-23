@@ -63,7 +63,9 @@ def get_feature_columns(df: pd.DataFrame) -> list:
     return v_cols + engineered
 
 
-def prepare_train_test(df: pd.DataFrame, test_size: float = 0.2, random_state: int = 42):
+def prepare_train_test(
+    df: pd.DataFrame, test_size: float = 0.2, random_state: int = 42
+):
     """
     Split data and apply SMOTE to handle class imbalance.
     SMOTE only on training data to prevent data leakage.

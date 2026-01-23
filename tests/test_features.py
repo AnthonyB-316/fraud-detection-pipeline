@@ -143,7 +143,9 @@ class TestPrepareTrainTest:
     def test_returns_correct_shapes(self, sample_dataframe):
         """Test that returned arrays have correct shapes."""
         df = engineer_features(sample_dataframe)
-        X_train, X_test, y_train, y_test, features = prepare_train_test(df, test_size=0.2)
+        X_train, X_test, y_train, y_test, features = prepare_train_test(
+            df, test_size=0.2
+        )
 
         # Test set should be ~20% of data
         assert len(X_test) == pytest.approx(len(df) * 0.2, rel=0.1)
@@ -167,7 +169,10 @@ class TestDataTypes:
                 "Time": [0.0, 100.0, 200.0],
                 "Amount": [10.5, 20.5, 30.5],
                 "Class": [0, 0, 1],
-                **{f"V{i}": [float(i), float(i + 1), float(i + 2)] for i in range(1, 29)},
+                **{
+                    f"V{i}": [float(i), float(i + 1), float(i + 2)]
+                    for i in range(1, 29)
+                },
             }
         )
 

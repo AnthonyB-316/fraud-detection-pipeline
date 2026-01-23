@@ -182,7 +182,9 @@ class DriftDetector:
         statistic, p_value = stats.ks_2samp(ref_data, current_data)
         return float(statistic), float(p_value)
 
-    def _detect_feature_drift(self, feature: str, current_data: np.ndarray) -> DriftResult:
+    def _detect_feature_drift(
+        self, feature: str, current_data: np.ndarray
+    ) -> DriftResult:
         """Detect drift for a single feature."""
         ref_stats = self.reference_stats.get(feature, {})
         ref_data = ref_stats.get("data", np.array([]))
@@ -201,7 +203,9 @@ class DriftDetector:
             psi = 0.0
 
         # Determine if drift is detected
-        drift_detected = (psi > self.drift_threshold) or (p_value < self.p_value_threshold)
+        drift_detected = (psi > self.drift_threshold) or (
+            p_value < self.p_value_threshold
+        )
 
         # Normalize drift score to 0-1
         drift_score = min(psi / 0.25, 1.0)  # Normalize: 0.25 PSI = 1.0 drift score

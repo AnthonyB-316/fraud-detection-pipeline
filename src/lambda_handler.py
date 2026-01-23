@@ -106,7 +106,12 @@ def log_prediction(transaction_id: str, prediction: Dict, amount: float):
 def health_handler(event, context):
     """Health check endpoint."""
     return create_response(
-        200, {"status": "healthy", "version": "1.0.0", "region": os.getenv("AWS_REGION", "unknown")}
+        200,
+        {
+            "status": "healthy",
+            "version": "1.0.0",
+            "region": os.getenv("AWS_REGION", "unknown"),
+        },
     )
 
 
@@ -128,7 +133,9 @@ def predict_handler(event, context):
         required_fields = ["Amount", "Time"] + [f"V{i}" for i in range(1, 29)]
         missing = [f for f in required_fields if f not in body]
         if missing:
-            return create_response(400, {"error": "Missing required fields", "missing": missing})
+            return create_response(
+                400, {"error": "Missing required fields", "missing": missing}
+            )
 
         # Get prediction
         detector = get_detector()
@@ -239,7 +246,9 @@ def explain_handler(event, context):
         required_fields = ["Amount", "Time"] + [f"V{i}" for i in range(1, 29)]
         missing = [f for f in required_fields if f not in body]
         if missing:
-            return create_response(400, {"error": "Missing required fields", "missing": missing})
+            return create_response(
+                400, {"error": "Missing required fields", "missing": missing}
+            )
 
         # Get explanation
         detector = get_detector()
@@ -294,12 +303,20 @@ def login_handler(event, context):
         if not user:
             return create_response(401, {"error": "Invalid credentials"})
 
-        access_token = create_access_token(data={"sub": user.username, "scopes": user.scopes})
-        refresh_token = create_refresh_token(data={"sub": user.username, "scopes": user.scopes})
+        access_token = create_access_token(
+            data={"sub": user.username, "scopes": user.scopes}
+        )
+        refresh_token = create_refresh_token(
+            data={"sub": user.username, "scopes": user.scopes}
+        )
 
         return create_response(
             200,
-            {"access_token": access_token, "refresh_token": refresh_token, "token_type": "bearer"},
+            {
+                "access_token": access_token,
+                "refresh_token": refresh_token,
+                "token_type": "bearer",
+            },
         )
 
     except json.JSONDecodeError:
@@ -333,24 +350,33 @@ def authorizer_handler(event, context):
             principal_id=token_data.username,
             effect="Allow",
             resource=method_arn,
-            context={"username": token_data.username, "scopes": ",".join(token_data.scopes)},
+            context={
+                "username": token_data.username,
+                "scopes": ",".join(token_data.scopes),
+            },
         )
 
     except Exception as e:
         logger.error(f"Authorization error: {e}")
         # Return deny policy
         return generate_policy(
-            principal_id="unauthorized", effect="Deny", resource=event.get("methodArn", "*")
+            principal_id="unauthorized",
+            effect="Deny",
+            resource=event.get("methodArn", "*"),
         )
 
 
-def generate_policy(principal_id: str, effect: str, resource: str, context: Dict = None) -> Dict:
+def generate_policy(
+    principal_id: str, effect: str, resource: str, context: Dict = None
+) -> Dict:
     """Generate IAM policy document."""
     policy = {
         "principalId": principal_id,
         "policyDocument": {
             "Version": "2012-10-17",
-            "Statement": [{"Action": "execute-api:Invoke", "Effect": effect, "Resource": resource}],
+            "Statement": [
+                {"Action": "execute-api:Invoke", "Effect": effect, "Resource": resource}
+            ],
         },
     }
 

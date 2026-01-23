@@ -92,7 +92,9 @@ class FraudDetectionConsumer:
             retries=3,
         )
 
-    def process_transaction(self, transaction: dict, transaction_id: str = None) -> dict:
+    def process_transaction(
+        self, transaction: dict, transaction_id: str = None
+    ) -> dict:
         """
         Process a single transaction and return prediction result.
 
@@ -109,7 +111,9 @@ class FraudDetectionConsumer:
 
             # Add transaction to drift detector
             feature_data = {
-                k: v for k, v in transaction.items() if k.startswith("V") or k in ["Amount", "Time"]
+                k: v
+                for k, v in transaction.items()
+                if k.startswith("V") or k in ["Amount", "Time"]
             }
             self.drift_detector.add_sample(feature_data)
 
@@ -216,7 +220,9 @@ class FraudDetectionConsumer:
 
     def get_stats(self) -> dict:
         """Get processing statistics."""
-        fraud_rate = self.fraud_count / self.processed_count if self.processed_count > 0 else 0
+        fraud_rate = (
+            self.fraud_count / self.processed_count if self.processed_count > 0 else 0
+        )
         return {
             "processed_count": self.processed_count,
             "fraud_count": self.fraud_count,

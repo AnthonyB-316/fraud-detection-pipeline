@@ -238,8 +238,12 @@ async def login(request: Request, login_req: LoginRequest):
 
     AUTH_EVENTS.labels(event_type="login", success="true").inc()
 
-    access_token = create_access_token(data={"sub": user.username, "scopes": user.scopes})
-    refresh_token = create_refresh_token(data={"sub": user.username, "scopes": user.scopes})
+    access_token = create_access_token(
+        data={"sub": user.username, "scopes": user.scopes}
+    )
+    refresh_token = create_refresh_token(
+        data={"sub": user.username, "scopes": user.scopes}
+    )
 
     return Token(access_token=access_token, refresh_token=refresh_token)
 
@@ -308,7 +312,9 @@ async def get_model_info(user: User = Depends(require_scope("read"))):
 @app.post("/predict", response_model=PredictionResponse, tags=["Predictions"])
 @limiter.limit("100/minute")
 async def predict_single(
-    request: Request, transaction: Transaction, user: User = Depends(require_scope("read"))
+    request: Request,
+    transaction: Transaction,
+    user: User = Depends(require_scope("read")),
 ):
     """
     Predict fraud probability for a single transaction.
@@ -344,10 +350,14 @@ async def predict_single(
     )
 
 
-@app.post("/predict/batch", response_model=BatchPredictionResponse, tags=["Predictions"])
+@app.post(
+    "/predict/batch", response_model=BatchPredictionResponse, tags=["Predictions"]
+)
 @limiter.limit("20/minute")
 async def predict_batch(
-    request: Request, transactions: List[Transaction], user: User = Depends(require_scope("write"))
+    request: Request,
+    transactions: List[Transaction],
+    user: User = Depends(require_scope("write")),
 ):
     """
     Batch prediction for multiple transactions.
@@ -357,7 +367,9 @@ async def predict_batch(
         raise HTTPException(status_code=503, detail="Model not loaded")
 
     if len(transactions) > 100:
-        raise HTTPException(status_code=400, detail="Maximum 100 transactions per batch")
+        raise HTTPException(
+            status_code=400, detail="Maximum 100 transactions per batch"
+        )
 
     start = time.time()
     results = detector.predict_batch([t.model_dump() for t in transactions])
@@ -387,7 +399,9 @@ async def predict_batch(
     )
 
 
-@app.post("/predict/explain", response_model=ExplainedPredictionResponse, tags=["Predictions"])
+@app.post(
+    "/predict/explain", response_model=ExplainedPredictionResponse, tags=["Predictions"]
+)
 @limiter.limit("30/minute")
 async def predict_with_explanation(
     request: Request,
@@ -454,7 +468,9 @@ async def get_drift_status(user: User = Depends(require_scope("read"))):
 
     # Update drift metrics
     for feature_result in report.feature_results:
-        DRIFT_SCORE.labels(feature=feature_result.feature).set(feature_result.drift_score)
+        DRIFT_SCORE.labels(feature=feature_result.feature).set(
+            feature_result.drift_score
+        )
 
     return report.to_dict()
 
