@@ -1,0 +1,11 @@
+# Development dependencies
+-r requirements.txt
+
+# Linting & Formatting
+black==24.3.0
+ruff==0.3.0
+isort==5.13.0
+
+# Security
+bandit==1.7.7
+safety==2.3.5

@@ -25,7 +25,7 @@ jobs:
 
       - name: Install linting tools
         run: |
-          pip install ruff black isort
+          pip install black==24.3.0 ruff==0.3.0 isort==5.13.0
 
       - name: Run Ruff linter
         run: |
