@@ -2,9 +2,10 @@
 data/*.csv
 data/*.zip
 
-# Models
+# Models (root folder only - spaces/models is deployed)
 models/*.pkl
 models/*.joblib
+!spaces/models/
 
 # Python
 __pycache__/
