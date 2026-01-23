@@ -1,0 +1,269 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  Fraud Detection Pipeline - Serverless Infrastructure
+  Real-time credit card fraud detection API deployed on AWS Lambda
+
+Parameters:
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues:
+      - dev
+      - staging
+      - prod
+    Description: Deployment environment
+
+  ModelBucketName:
+    Type: String
+    Description: S3 bucket containing the trained model
+
+  JwtSecretKey:
+    Type: String
+    NoEcho: true
+    Description: JWT secret key for authentication
+
+Globals:
+  Function:
+    Timeout: 30
+    MemorySize: 1024
+    Runtime: python3.11
+    Environment:
+      Variables:
+        ENVIRONMENT: !Ref Environment
+        MODEL_BUCKET: !Ref ModelBucketName
+        JWT_SECRET_KEY: !Ref JwtSecretKey
+        PREDICTIONS_TABLE: !Ref PredictionsTable
+
+Resources:
+  # ===================
+  # API Gateway
+  # ===================
+  FraudDetectionApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      Name: !Sub fraud-detection-api-${Environment}
+      StageName: !Ref Environment
+      Description: Fraud Detection API Gateway
+      Cors:
+        AllowMethods: "'GET,POST,OPTIONS'"
+        AllowHeaders: "'Content-Type,Authorization'"
+        AllowOrigin: "'*'"
+      Auth:
+        DefaultAuthorizer: JwtAuthorizer
+        Authorizers:
+          JwtAuthorizer:
+            FunctionArn: !GetAtt AuthorizerFunction.Arn
+            Identity:
+              Headers:
+                - Authorization
+
+  # ===================
+  # Lambda Functions
+  # ===================
+  PredictFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub fraud-predict-${Environment}
+      Handler: lambda_handler.predict_handler
+      CodeUri: ../src/
+      Description: Single transaction fraud prediction
+      Policies:
+        - S3ReadPolicy:
+            BucketName: !Ref ModelBucketName
+        - DynamoDBCrudPolicy:
+            TableName: !Ref PredictionsTable
+      Events:
+        PredictApi:
+          Type: Api
+          Properties:
+            RestApiId: !Ref FraudDetectionApi
+            Path: /predict
+            Method: POST
+
+  BatchPredictFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub fraud-batch-predict-${Environment}
+      Handler: lambda_handler.batch_predict_handler
+      CodeUri: ../src/
+      Description: Batch fraud prediction
+      Timeout: 60
+      MemorySize: 2048
+      Policies:
+        - S3ReadPolicy:
+            BucketName: !Ref ModelBucketName
+        - DynamoDBCrudPolicy:
+            TableName: !Ref PredictionsTable
+      Events:
+        BatchPredictApi:
+          Type: Api
+          Properties:
+            RestApiId: !Ref FraudDetectionApi
+            Path: /predict/batch
+            Method: POST
+
+  ExplainFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub fraud-explain-${Environment}
+      Handler: lambda_handler.explain_handler
+      CodeUri: ../src/
+      Description: Prediction with SHAP explanation
+      Timeout: 60
+      MemorySize: 2048
+      Policies:
+        - S3ReadPolicy:
+            BucketName: !Ref ModelBucketName
+      Events:
+        ExplainApi:
+          Type: Api
+          Properties:
+            RestApiId: !Ref FraudDetectionApi
+            Path: /predict/explain
+            Method: POST
+
+  HealthFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub fraud-health-${Environment}
+      Handler: lambda_handler.health_handler
+      CodeUri: ../src/
+      Description: Health check endpoint
+      MemorySize: 256
+      Timeout: 10
+      Events:
+        HealthApi:
+          Type: Api
+          Properties:
+            RestApiId: !Ref FraudDetectionApi
+            Path: /health
+            Method: GET
+            Auth:
+              Authorizer: NONE
+
+  AuthorizerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub fraud-authorizer-${Environment}
+      Handler: lambda_handler.authorizer_handler
+      CodeUri: ../src/
+      Description: JWT token authorizer
+      MemorySize: 256
+      Timeout: 10
+
+  LoginFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub fraud-login-${Environment}
+      Handler: lambda_handler.login_handler
+      CodeUri: ../src/
+      Description: Authentication endpoint
+      MemorySize: 256
+      Events:
+        LoginApi:
+          Type: Api
+          Properties:
+            RestApiId: !Ref FraudDetectionApi
+            Path: /auth/login
+            Method: POST
+            Auth:
+              Authorizer: NONE
+
+  # ===================
+  # DynamoDB
+  # ===================
+  PredictionsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub fraud-predictions-${Environment}
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: transaction_id
+          AttributeType: S
+        - AttributeName: timestamp
+          AttributeType: S
+      KeySchema:
+        - AttributeName: transaction_id
+          KeyType: HASH
+        - AttributeName: timestamp
+          KeyType: RANGE
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Project
+          Value: fraud-detection
+
+  # ===================
+  # S3 Bucket for Models
+  # ===================
+  ModelBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub fraud-detection-models-${AWS::AccountId}-${Environment}
+      VersioningConfiguration:
+        Status: Enabled
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+
+  # ===================
+  # CloudWatch Alarms
+  # ===================
+  PredictFunctionErrorAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub fraud-predict-errors-${Environment}
+      AlarmDescription: Alarm when predict function has errors
+      MetricName: Errors
+      Namespace: AWS/Lambda
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 5
+      ComparisonOperator: GreaterThanThreshold
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref PredictFunction
+
+  ApiLatencyAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub fraud-api-latency-${Environment}
+      AlarmDescription: Alarm when API latency exceeds threshold
+      MetricName: Latency
+      Namespace: AWS/ApiGateway
+      Statistic: Average
+      Period: 300
+      EvaluationPeriods: 2
+      Threshold: 1000
+      ComparisonOperator: GreaterThanThreshold
+      Dimensions:
+        - Name: ApiName
+          Value: !Sub fraud-detection-api-${Environment}
+
+Outputs:
+  ApiEndpoint:
+    Description: API Gateway endpoint URL
+    Value: !Sub https://${FraudDetectionApi}.execute-api.${AWS::Region}.amazonaws.com/${Environment}
+
+  PredictFunctionArn:
+    Description: Predict Lambda function ARN
+    Value: !GetAtt PredictFunction.Arn
+
+  PredictionsTableName:
+    Description: DynamoDB table for predictions
+    Value: !Ref PredictionsTable
+
+  ModelBucketName:
+    Description: S3 bucket for model storage
+    Value: !Ref ModelBucket

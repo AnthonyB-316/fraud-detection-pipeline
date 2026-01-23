@@ -1,0 +1,35 @@
+# Render.com Blueprint
+# Deploy with: Connect GitHub repo at render.com/dashboard
+
+services:
+  # Main API Service
+  - type: web
+    name: fraud-detection-api
+    env: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    dockerTarget: api
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: JWT_SECRET_KEY
+        generateValue: true
+      - key: PYTHONUNBUFFERED
+        value: "1"
+    autoDeploy: true
+
+  # Streamlit Dashboard (optional - comment out if not needed)
+  # - type: web
+  #   name: fraud-detection-dashboard
+  #   env: docker
+  #   dockerfilePath: ./Dockerfile
+  #   dockerContext: .
+  #   dockerTarget: dashboard
+  #   plan: free
+  #   healthCheckPath: /_stcore/health
+  #   envVars:
+  #     - key: API_URL
+  #       fromService:
+  #         name: fraud-detection-api
+  #         type: web
+  #         property: hostport
