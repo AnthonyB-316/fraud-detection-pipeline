@@ -154,10 +154,24 @@ with tab2:
         else:
             amount, hour, category, distance = 100.00, 12, "Retail", 5.0
 
-        amount = st.number_input("Amount ($)", min_value=0.01, max_value=10000.0, value=amount)
-        hour = st.slider("Hour of day", 0, 23, hour, help="0 = midnight, 12 = noon")
-        category = st.selectbox("Category", ["Grocery", "Gas", "Restaurant", "Online", "Retail", "ATM", "Wire"], index=["Grocery", "Gas", "Restaurant", "Online", "Retail", "ATM", "Wire"].index(category))
-        distance = st.number_input("Distance from home (miles)", min_value=0.0, max_value=500.0, value=distance)
+        amount = st.number_input(
+            "Amount ($)", min_value=0.01, max_value=10000.0, value=amount,
+            help="Transaction dollar amount. Fraudsters often test with small amounts, then go big."
+        )
+        hour = st.slider(
+            "Hour of day", 0, 23, hour,
+            help="0 = midnight, 12 = noon. Fraud peaks between midnight and 5am when cardholders are asleep."
+        )
+        category = st.selectbox(
+            "Category",
+            ["Grocery", "Gas", "Restaurant", "Online", "Retail", "ATM", "Wire"],
+            index=["Grocery", "Gas", "Restaurant", "Online", "Retail", "ATM", "Wire"].index(category),
+            help="Transaction type. ATM withdrawals and wire transfers are high-risk because they're hard to reverse."
+        )
+        distance = st.number_input(
+            "Distance from home (miles)", min_value=0.0, max_value=500.0, value=distance,
+            help="How far from the cardholder's home address. Transactions far from home are more suspicious."
+        )
 
         score_btn = st.button("Score Transaction", type="primary", use_container_width=True)
 
@@ -263,10 +277,10 @@ with tab3:
 
     if df is not None:
         col1, col2, col3, col4 = st.columns(4)
-        col1.metric("Transactions", f"{len(df):,}")
-        col2.metric("Fraud Cases", f"{df['Class'].sum():,}")
-        col3.metric("Fraud Rate", f"{df['Class'].mean():.2%}")
-        col4.metric("Avg Amount", f"${df['Amount'].mean():.2f}")
+        col1.metric("Transactions", f"{len(df):,}", help="Total number of transactions in dataset")
+        col2.metric("Fraud Cases", f"{df['Class'].sum():,}", help="Number of confirmed fraudulent transactions")
+        col3.metric("Fraud Rate", f"{df['Class'].mean():.2%}", help="Percentage of transactions that were fraud")
+        col4.metric("Avg Amount", f"${df['Amount'].mean():.2f}", help="Average transaction dollar amount")
 
         st.markdown("---")
 
