@@ -295,11 +295,11 @@ with tab3:
     st.header("Data Explorer")
 
     # Data source toggle
-    data_source = st.radio("Data source", ["Sample data (1,017 transactions)", "Upload your own CSV"], horizontal=True)
+    data_source = st.radio("Data source", ["Sample data", "Upload your own CSV"], horizontal=True)
 
-    if data_source == "Sample data (1,017 transactions)":
+    if data_source == "Sample data":
         df = SAMPLE_DATA.copy()
-        st.success(f"Loaded {len(df):,} sample transactions ({df['Class'].sum()} fraud)")
+        st.success(f"Loaded {len(df):,} sample transactions ({df['Class'].sum()} fraud, {df['Class'].mean():.1%} fraud rate)")
     else:
         uploaded = st.file_uploader("Upload transactions CSV", type=['csv'])
         if uploaded:
@@ -322,15 +322,23 @@ with tab3:
 
         with col1:
             st.subheader("Amount Distribution")
+            use_log = st.checkbox("Log scale", value=True, help="Transaction amounts follow a log-normal distribution. Log scale shows the 'bell curve' shape.")
+
             fig = px.histogram(
                 df, x='Amount', color='Class',
                 nbins=50,
                 color_discrete_map={0: '#3498db', 1: '#e74c3c'},
                 labels={'Class': 'Fraud'},
-                category_orders={'Class': [0, 1]}
+                category_orders={'Class': [0, 1]},
+                log_x=use_log
             )
             fig.update_layout(height=300, bargap=0.1)
             st.plotly_chart(fig, use_container_width=True)
+
+            # Show distribution stats
+            legit_amt = df[df['Class'] == 0]['Amount']
+            fraud_amt = df[df['Class'] == 1]['Amount']
+            st.caption(f"Legit: median ${legit_amt.median():.0f}, mean ${legit_amt.mean():.0f} | Fraud: median ${fraud_amt.median():.0f}, mean ${fraud_amt.mean():.0f}")
 
         with col2:
             st.subheader("Fraud by Category")
@@ -344,8 +352,35 @@ with tab3:
             else:
                 st.info("No Category column in data")
 
-        st.subheader("Transaction Data")
-        st.dataframe(df, use_container_width=True, hide_index=True, height=300)
+        # Second row of charts
+        col1, col2 = st.columns(2)
+
+        with col1:
+            st.subheader("Transactions by Hour")
+            hour_data = df.groupby(['Hour', 'Class']).size().reset_index(name='Count')
+            fig = px.bar(hour_data, x='Hour', y='Count', color='Class',
+                        color_discrete_map={0: '#3498db', 1: '#e74c3c'},
+                        labels={'Class': 'Fraud'},
+                        barmode='stack')
+            fig.update_layout(height=280)
+            fig.update_xaxes(tickmode='linear', dtick=2)
+            st.plotly_chart(fig, use_container_width=True)
+            st.caption("Fraud peaks late night (11pm-5am) when cardholders are asleep")
+
+        with col2:
+            st.subheader("Distance from Home")
+            fig = px.box(df, x='Class', y='Distance',
+                        color='Class',
+                        color_discrete_map={0: '#3498db', 1: '#e74c3c'},
+                        labels={'Class': 'Transaction Type', 'Distance': 'Miles'})
+            fig.update_layout(height=280, showlegend=False)
+            fig.update_xaxes(tickvals=[0, 1], ticktext=['Legitimate', 'Fraud'])
+            st.plotly_chart(fig, use_container_width=True)
+            st.caption("Fraud transactions are typically far from the cardholder's home")
+
+        st.markdown("---")
+        with st.expander("View Raw Data"):
+            st.dataframe(df, use_container_width=True, hide_index=True, height=300)
 
 st.markdown("---")
 st.caption("Fraud Detection Pipeline | XGBoost + FastAPI + Streamlit | [GitHub](https://github.com/AnthonyB-316/fraud-detection-pipeline)")
