@@ -322,23 +322,37 @@ with tab3:
 
         with col1:
             st.subheader("Amount Distribution")
-            use_log = st.checkbox("Log scale", value=True, help="Transaction amounts follow a log-normal distribution. Log scale shows the 'bell curve' shape.")
+            normalize = st.checkbox("Normalize (compare shapes)", value=True,
+                help="Normalize to % so you can compare distributions despite different sample sizes (1000 legit vs 50 fraud)")
 
-            fig = px.histogram(
-                df, x='Amount', color='Class',
-                nbins=50,
-                color_discrete_map={0: '#3498db', 1: '#e74c3c'},
-                labels={'Class': 'Fraud'},
-                category_orders={'Class': [0, 1]},
-                log_x=use_log
-            )
-            fig.update_layout(height=300, bargap=0.1)
-            st.plotly_chart(fig, use_container_width=True)
-
-            # Show distribution stats
             legit_amt = df[df['Class'] == 0]['Amount']
             fraud_amt = df[df['Class'] == 1]['Amount']
-            st.caption(f"Legit: median ${legit_amt.median():.0f}, mean ${legit_amt.mean():.0f} | Fraud: median ${fraud_amt.median():.0f}, mean ${fraud_amt.mean():.0f}")
+
+            histnorm = 'probability' if normalize else None
+            y_title = "% of Transactions" if normalize else "Count"
+
+            fig = go.Figure()
+            fig.add_trace(go.Histogram(
+                x=legit_amt, name='Legitimate',
+                marker_color='#3498db', opacity=0.7,
+                nbinsx=25, histnorm=histnorm
+            ))
+            fig.add_trace(go.Histogram(
+                x=fraud_amt, name='Fraud',
+                marker_color='#e74c3c', opacity=0.8,
+                nbinsx=25, histnorm=histnorm
+            ))
+            fig.update_layout(
+                barmode='overlay',
+                height=300,
+                margin=dict(t=10, b=40),
+                legend=dict(yanchor="top", y=0.99, xanchor="right", x=0.99),
+                xaxis_title="Amount ($)",
+                yaxis_title=y_title
+            )
+            st.plotly_chart(fig, use_container_width=True)
+
+            st.caption(f"**Legit:** median ${legit_amt.median():.0f} | **Fraud:** median ${fraud_amt.median():.0f} (fraud amounts are higher)")
 
         with col2:
             st.subheader("Fraud by Category")
