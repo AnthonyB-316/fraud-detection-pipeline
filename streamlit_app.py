@@ -17,31 +17,65 @@ st.caption("XGBoost model trained on 284K transactions | 94% recall")
 def generate_sample_data():
     np.random.seed(42)
     n_legit = 1000
-    n_fraud = 17  # ~1.7% fraud rate like real data
+    n_fraud = 50  # ~5% fraud rate (slightly elevated for demo visibility)
 
-    # Legitimate transactions
+    # Legitimate transactions - log-normal amounts (realistic distribution)
+    # Log-normal: most transactions $20-100, some $100-300, few $300+
+    legit_amounts = np.random.lognormal(mean=3.5, sigma=0.8, size=n_legit)  # median ~$33, mean ~$50
+    legit_amounts = np.clip(legit_amounts, 5, 500)  # realistic bounds
+
+    # Hours: bimodal - lunch (11-14) and evening (17-20) peaks
+    legit_hours = np.concatenate([
+        np.random.normal(12, 1.5, n_legit // 3).astype(int),  # lunch
+        np.random.normal(18, 2, n_legit // 3).astype(int),    # evening
+        np.random.randint(8, 22, n_legit - 2 * (n_legit // 3))  # spread
+    ])
+    legit_hours = np.clip(legit_hours, 6, 23)
+
+    # Distance: most purchases near home, log-normal
+    legit_distance = np.random.lognormal(mean=1.5, sigma=0.7, size=n_legit)
+    legit_distance = np.clip(legit_distance, 0.1, 30)
+
     legit = pd.DataFrame({
-        'Amount': np.random.exponential(50, n_legit),
-        'Hour': np.random.choice(range(6, 23), n_legit),  # Daytime
+        'Amount': legit_amounts,
+        'Hour': legit_hours,
         'DayOfWeek': np.random.choice(['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'], n_legit),
-        'Category': np.random.choice(['Grocery', 'Gas', 'Restaurant', 'Online', 'Retail'], n_legit, p=[0.3, 0.15, 0.2, 0.2, 0.15]),
-        'Distance': np.random.exponential(5, n_legit),
+        'Category': np.random.choice(['Grocery', 'Gas', 'Restaurant', 'Online', 'Retail'], n_legit, p=[0.30, 0.15, 0.20, 0.20, 0.15]),
+        'Distance': legit_distance,
         'Class': 0
     })
 
-    # Fraudulent transactions
+    # Fraudulent transactions - different patterns
+    # Higher amounts, bimodal: small test charges + large fraud
+    fraud_amounts = np.concatenate([
+        np.random.uniform(1, 10, n_fraud // 4),           # test charges
+        np.random.lognormal(5.5, 0.6, n_fraud - n_fraud // 4)  # large purchases
+    ])
+    fraud_amounts = np.clip(fraud_amounts, 1, 2000)
+
+    # Hours: late night bias (but not exclusively)
+    fraud_hours = np.concatenate([
+        np.random.choice([0, 1, 2, 3, 4, 5, 23], n_fraud * 2 // 3),  # late night
+        np.random.randint(0, 24, n_fraud - n_fraud * 2 // 3)         # some daytime
+    ])
+
+    # Distance: far from home
+    fraud_distance = np.random.lognormal(mean=3.5, sigma=0.8, size=n_fraud)
+    fraud_distance = np.clip(fraud_distance, 10, 200)
+
     fraud = pd.DataFrame({
-        'Amount': np.random.exponential(200, n_fraud) + 100,  # Higher amounts
-        'Hour': np.random.choice([0, 1, 2, 3, 4, 5, 23], n_fraud),  # Late night
+        'Amount': fraud_amounts,
+        'Hour': fraud_hours,
         'DayOfWeek': np.random.choice(['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'], n_fraud),
-        'Category': np.random.choice(['Online', 'ATM', 'Wire'], n_fraud),
-        'Distance': np.random.exponential(50, n_fraud) + 20,  # Far from home
+        'Category': np.random.choice(['Online', 'ATM', 'Wire', 'Retail'], n_fraud, p=[0.35, 0.30, 0.20, 0.15]),
+        'Distance': fraud_distance,
         'Class': 1
     })
 
     df = pd.concat([legit, fraud]).reset_index(drop=True)
     df['Amount'] = df['Amount'].round(2)
     df['Distance'] = df['Distance'].round(1)
+    df['Hour'] = df['Hour'].astype(int)
     return df.sample(frac=1, random_state=42).reset_index(drop=True)
 
 SAMPLE_DATA = generate_sample_data()
