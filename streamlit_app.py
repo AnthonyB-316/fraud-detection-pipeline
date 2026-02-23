@@ -12,10 +12,10 @@ st.set_page_config(page_title="Fraud Detection", layout="wide")
 st.title("Credit Card Fraud Detection")
 st.caption("XGBoost model trained on 284,807 real transactions (Kaggle dataset) | 94% recall")
 
-# Load sample data
+# Load full dataset
 @st.cache_data
-def load_sample_data():
-    return pd.read_csv("fraud_sample_2500.csv")
+def load_data():
+    return pd.read_csv("fraud_data_284k.csv")
 
 # Tabs
 tab1, tab2, tab3 = st.tabs(["Model Performance", "Test Transaction", "Data Explorer"])
@@ -236,14 +236,14 @@ with tab3:
     st.header("Data Explorer")
     st.caption("Real transaction data from Kaggle Credit Card Fraud Detection dataset")
 
-    df = load_sample_data()
+    df = load_data()
 
-    st.success(f"Showing {len(df):,} transactions ({df['Class'].sum()} fraud) - sample enriched with all fraud cases for visualization")
+    st.success(f"Loaded {len(df):,} real transactions ({df['Class'].sum()} confirmed frauds)")
 
     col1, col2, col3, col4 = st.columns(4)
-    col1.metric("Transactions", f"{len(df):,}", help="Sample size (full dataset: 284,807)")
-    col2.metric("Fraud Cases", f"{df['Class'].sum():,}", help="All 492 fraud cases included")
-    col3.metric("Fraud Rate (sample)", f"{df['Class'].mean():.1%}", help="Enriched sample; real rate is 0.17%")
+    col1.metric("Transactions", f"{len(df):,}", help="Full Kaggle Credit Card Fraud dataset")
+    col2.metric("Fraud Cases", f"{df['Class'].sum():,}", help="Confirmed fraudulent transactions")
+    col3.metric("Fraud Rate", f"{df['Class'].mean():.3%}", help="Real-world fraud rate")
     col4.metric("Avg Amount", f"${df['Amount'].mean():.2f}", help="Average transaction amount")
 
     st.markdown("---")
