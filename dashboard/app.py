@@ -157,11 +157,19 @@ with tab3:
             col3.metric("Fraud Rate", f"{df['Class'].mean():.4%}")
 
             st.subheader("Amount Distribution by Class")
+            df_plot = df.copy()
+            df_plot['Class'] = df_plot['Class'].map({0: 'Legitimate', 1: 'Fraud'})
+            amount_99 = float(df['Amount'].quantile(0.99))
             fig = px.histogram(
-                df, x='Amount', color='Class',
+                df_plot, x='Amount', color='Class',
                 nbins=50, marginal='box',
-                color_discrete_map={0: 'blue', 1: 'red'},
-                labels={'Class': 'Is Fraud'}
+                range_x=[0, amount_99],
+                color_discrete_map={'Legitimate': '#1f77b4', 'Fraud': '#d62728'},
+                labels={'Amount': 'Transaction Amount ($)'},
+            )
+            fig.update_layout(
+                title=f"Clipped to 99th percentile (${amount_99:,.0f}). Max in dataset: ${df['Amount'].max():,.0f}.",
+                bargap=0.05,
             )
             st.plotly_chart(fig, use_container_width=True)
     else:
